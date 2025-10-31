@@ -1,0 +1,210 @@
+Build a Next.js 14 web app (no TypeScript) called “Visa Checklist Builder.”
+
+Core Stack:
+
+Next.js 14
+
+React (JavaScript only — no TypeScript)
+
+Tailwind CSS for styling
+
+LocalStorage for data persistence (no backend needed)
+
+🎯 App Overview
+
+A web-based Visa Checklist Builder for migration agents to manage and customize document checklists per visa type.
+
+The app should allow:
+
+Selecting a visa category (Partner Visa, 482 Temporary Work Visa, Protection Visa, Permanent Employer Sponsored Visa).
+
+Automatically loading a default checklist template for that visa.
+
+Adding, editing, deleting, and reordering checklist categories and items.
+
+Saving customized versions as templates, and reloading them later from localStorage.
+
+🧩 Features Breakdown
+
+1. Visa Selection Dropdown
+
+At the top, include a select box:
+
+Partner Visa
+
+482 Temporary Work Visa
+
+Protection Visa
+
+Permanent Employer Sponsored Visa
+
+On selection:
+
+Load the default checklist for that visa from /data/visaChecklists.js.
+
+If a saved template exists for that visa, display an option to load it instead.
+
+2. Checklist UI
+
+Each visa checklist should display multiple collapsible categories.
+
+Each category card should include:
+
+Inline editable title (category name).
+
+Add Item button.
+
+Delete Category (🗑) button.
+
+Items below (collapsible list).
+
+3. Item Features
+
+Each item should include:
+
+Editable text (contenteditable).
+
+Delete button.
+
+Items should support drag-and-drop reordering (using libraries like react-beautiful-dnd or @dnd-kit/core).
+
+4. Add New Categories & Items
+
+Add a “+ Add Category” button at the bottom of the checklist.
+
+Inside each category, the “Add Item” button should append a new editable checklist item.
+
+5. Save Template Functionality
+
+Include a “💾 Save Checklist as Template” button.
+
+On click:
+
+Save the current state (categories + items) into localStorage, grouped by visa type.
+
+Example: localStorage.setItem('template_partnerVisa', JSON.stringify(checklistData)).
+
+When the same visa type is selected later, show a dropdown:
+
+“Default Template”
+
+“Saved Template”
+
+Selecting “Saved Template” should load the previously saved custom checklist.
+
+6. Save Button
+
+Include a final “Save Checklist” button that saves all current changes to localStorage (even without naming as a new template).
+
+🧠 Logic & Behavior
+
+Maintain checklist data in React state (useState).
+
+Use useEffect to sync state changes to localStorage.
+
+Each visa type should have its own default JSON template (from /data/visaChecklists.js).
+
+When user modifies a checklist, it should not affect the default template — changes are stored separately.
+
+Templates should persist between browser sessions.
+
+🧾 Example Data File: /data/visaChecklists.js
+const visaChecklists = {
+  partner: {
+    "Primary Applicant Documents": [
+      "Birth Certificate",
+      "Passport",
+      "Marriage Certificate (if applicable)",
+      "AFP Clearance Certificate",
+      "Police Clearance Certificate (Overseas)"
+    ],
+    "Relationship Evidence": [
+      "Joint Bank Account Statements",
+      "Evidence of Joint Travel",
+      "Statements from Friends & Family"
+    ],
+    "Sponsor Documents": [
+      "Australian Citizenship Certificate",
+      "Birth Certificate",
+      "Passport"
+    ]
+  },
+  temporaryWork: {
+    "Applicant Checklist": [
+      "Primary Applicant - Passport - Hassan TEST",
+      "Primary Applicant - Passport Photos - Hassan TEST",
+      "Skills - Curriculum Vitae - Hassan TEST",
+      "Skills - Employment Contract - Hassan TEST",
+      "Skills - English Language Test Results Certificate - Hassan TEST",
+      "Skills - Licence or Registration - Hassan TEST",
+      "Skills - Qualification Certificate - Hassan TEST",
+      "Skills - Reference Letters - Hassan TEST",
+      "Skills - Training Certificates - Hassan TEST",
+      "AFP Clearance Certificate - Primary Applicant - Hassan TEST",
+      "Police Clearance Certificate (Overseas) - Primary Applicant - Hassan TEST"
+    ]
+  },
+  protection: {
+    "Applicant Checklist": [
+      "Primary Applicant - Passport - Hassan TEST",
+      "Primary Applicant - Passport Photos - Hassan TEST",
+      "Skills - Curriculum Vitae - Hassan TEST",
+      "Skills - Employment Contract - Hassan TEST",
+      "Skills - English Language Test Results Certificate - Hassan TEST",
+      "Skills - Licence or Registration - Hassan TEST",
+      "Skills - Qualification Certificate - Hassan TEST",
+      "Skills - Reference Letters - Hassan TEST",
+      "Skills - Training Certificates - Hassan TEST",
+      "AFP Clearance Certificate - Primary Applicant - Hassan TEST",
+      "Police Clearance Certificate (Overseas) - Primary Applicant - Hassan TEST"
+    ]
+  },
+  employerSponsored: {
+    "Primary Applicant Documents": [
+      "Passport",
+      "Curriculum Vitae",
+      "Employment Contract",
+      "Qualification Certificates",
+      "English Language Test Results",
+      "Police Clearance Certificates"
+    ],
+    "Employer Documents": [
+      "Sponsorship Approval Letter",
+      "Position Description",
+      "Training Benchmark Evidence",
+      "Financial Statements"
+    ],
+    "Other Requirements": [
+      "AFP Clearance Certificate",
+      "Health Examination",
+      "Nomination Approval Letter"
+    ]
+  }
+};
+export default visaChecklists;
+
+🎨 Design Notes
+
+Use TailwindCSS for spacing, rounded corners, and consistent color theme.
+
+Card layout centered on the screen with shadows.
+
+Green accent color (#198754) for buttons.
+
+Smooth transitions for collapsing/expanding.
+
+Responsive for desktop, tablet, and mobile.
+
+⚙️ Deliverables
+
+Full Next.js 14 app (no TypeScript)
+
+All checklist logic functional (add, edit, delete, reorder)
+
+Drag-and-drop reorder support via react-beautiful-dnd or @dnd-kit/core
+
+Template saving and reloading via localStorage
+
+Clean modern Tailwind design
+
+No authentication or backend — just client-side prototype ready for future integration.
