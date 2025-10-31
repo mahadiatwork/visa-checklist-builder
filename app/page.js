@@ -194,16 +194,18 @@ export default function Home() {
   const handleDragEnd = (event, category) => {
     const { active, over } = event;
 
-    if (active.id !== over.id) {
-      const items = checklist[category];
-      const oldIndex = items.findIndex((item) => item.id === active.id);
-      const newIndex = items.findIndex((item) => item.id === over.id);
-
-      setChecklist({
-        ...checklist,
-        [category]: arrayMove(items, oldIndex, newIndex),
-      });
+    if (!over || active.id === over.id) {
+      return;
     }
+
+    const items = checklist[category];
+    const oldIndex = items.findIndex((item) => item.id === active.id);
+    const newIndex = items.findIndex((item) => item.id === over.id);
+
+    setChecklist({
+      ...checklist,
+      [category]: arrayMove(items, oldIndex, newIndex),
+    });
   };
 
   const saveAsTemplate = () => {
