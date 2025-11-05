@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   DndContext,
   closestCenter,
@@ -24,6 +25,20 @@ const VISA_TYPES = {
   temporaryWork: '482 Temporary Work Visa',
   protection: 'Protection Visa',
   employerSponsored: 'Permanent Employer Sponsored Visa',
+};
+
+// Map Zoho Visa_Type values to our internal visa type keys
+const mapZohoVisaType = (zohoVisaType) => {
+  if (!zohoVisaType) return null;
+  
+  const typeLower = zohoVisaType.toLowerCase();
+  
+  if (typeLower.includes('partner')) return 'partner';
+  if (typeLower.includes('482') || typeLower.includes('temporary work')) return 'temporaryWork';
+  if (typeLower.includes('protection')) return 'protection';
+  if (typeLower.includes('employer') || typeLower.includes('sponsored')) return 'employerSponsored';
+  
+  return null;
 };
 
 function SortableItem({ id, item, onEdit, onDelete }) {
@@ -75,12 +90,17 @@ function SortableItem({ id, item, onEdit, onDelete }) {
   );
 }
 
-export default function Home() {
+function HomeContent() {
+  const searchParams = useSearchParams();
   const [selectedVisa, setSelectedVisa] = useState('partner');
   const [useTemplate, setUseTemplate] = useState('default');
   const [checklist, setChecklist] = useState({});
   const [collapsedCategories, setCollapsedCategories] = useState({});
   const [hasSavedTemplate, setHasSavedTemplate] = useState(false);
+  const [dealData, setDealData] = useState(null);
+  const [loadingDeal, setLoadingDeal] = useState(false);
+  const [dealError, setDealError] = useState(null);
+  const [savedChecklistJson, setSavedChecklistJson] = useState(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -88,6 +108,42 @@ export default function Home() {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  // Fetch deal data from Zoho CRM when deal_id is in URL
+  useEffect(() => {
+    const dealId = searchParams.get('deal_id');
+    
+    if (dealId) {
+      fetchDealData(dealId);
+    }
+  }, [searchParams]);
+
+  const fetchDealData = async (dealId) => {
+    setLoadingDeal(true);
+    setDealError(null);
+    
+    try {
+      const response = await fetch(`/api/zoho/deal?deal_id=${dealId}`);
+      const data = await response.json();
+      
+      if (data.success && data.deal) {
+        setDealData(data.deal);
+        
+        // Try to map Zoho Visa_Type to our visa type
+        const mappedVisaType = mapZohoVisaType(data.deal.Visa_Type);
+        if (mappedVisaType) {
+          setSelectedVisa(mappedVisaType);
+        }
+      } else {
+        setDealError(data.error || 'Failed to fetch deal data');
+      }
+    } catch (error) {
+      console.error('Error fetching deal:', error);
+      setDealError('Failed to connect to Zoho CRM. Please check your configuration.');
+    } finally {
+      setLoadingDeal(false);
+    }
+  };
 
   useEffect(() => {
     loadChecklist();
@@ -215,15 +271,125 @@ export default function Home() {
   };
 
   const saveChecklist = () => {
+    // Format the checklist to preserve order and structure
+    const formattedChecklist = {
+      visaType: selectedVisa,
+      savedAt: new Date().toISOString(),
+      categories: Object.entries(checklist).map(([categoryName, items]) => ({
+        name: categoryName,
+        items: items.map((item, index) => ({
+          id: item.id,
+          text: item.text,
+          order: index + 1, // Explicit order indicator
+        })),
+      })),
+      // Also include raw structure for easy access
+      raw: checklist,
+    };
+    
+    const jsonString = JSON.stringify(formattedChecklist, null, 2);
     localStorage.setItem(`checklist_${selectedVisa}`, JSON.stringify(checklist));
-    alert('Checklist saved!');
+    
+    // Show the JSON at the top
+    setSavedChecklistJson(jsonString);
+    
+    // Scroll to top to show the JSON
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      alert('JSON copied to clipboard!');
+    }).catch(() => {
+      alert('Failed to copy to clipboard');
+    });
   };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-4xl mx-auto">
+        {/* Saved Checklist JSON Display */}
+        {savedChecklistJson && (
+          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <h2 className="text-lg font-semibold text-indigo-800">Saved Checklist JSON (with Order/Sequence)</h2>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => copyToClipboard(savedChecklistJson)}
+                  className="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700 transition-colors flex items-center gap-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  Copy JSON
+                </button>
+                <button
+                  onClick={() => setSavedChecklistJson(null)}
+                  className="px-3 py-1.5 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+            <pre className="bg-white border border-indigo-100 rounded p-4 overflow-x-auto text-sm text-gray-800 max-h-96 overflow-y-auto">
+              <code>{savedChecklistJson}</code>
+            </pre>
+            <p className="text-xs text-indigo-600 mt-2">
+              ✓ Checklist saved to localStorage. The order/sequence of items within each category is preserved.
+            </p>
+          </div>
+        )}
+
         <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
           <h1 className="text-3xl font-bold text-gray-800 mb-6">Visa Checklist Builder</h1>
+          
+          {/* Deal Information Display */}
+          {loadingDeal && (
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center gap-2 text-blue-700">
+                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Loading deal information from Zoho CRM...</span>
+              </div>
+            </div>
+          )}
+          
+          {dealError && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-center gap-2 text-red-700">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>{dealError}</span>
+              </div>
+            </div>
+          )}
+          
+          {dealData && !loadingDeal && (
+            <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-green-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-green-800 mb-1">Connected to Zoho Deal</h3>
+                  <div className="text-sm text-green-700 space-y-1">
+                    <p><strong>Deal Name:</strong> {dealData.Deal_Name || dealData.DealName || 'N/A'}</p>
+                    {dealData.Visa_Type && <p><strong>Visa Type:</strong> {dealData.Visa_Type}</p>}
+                    {dealData.Stage && <p><strong>Stage:</strong> {dealData.Stage}</p>}
+                    {dealData.id && <p className="text-xs text-green-600"><strong>Deal ID:</strong> {dealData.id}</p>}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           
           <div className="grid md:grid-cols-2 gap-4 mb-4">
             <div>
@@ -367,5 +533,24 @@ export default function Home() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 py-8 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <div className="animate-pulse">
+              <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   );
 }
