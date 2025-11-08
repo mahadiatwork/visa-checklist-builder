@@ -101,6 +101,8 @@ function HomeContent() {
   const [loadingDeal, setLoadingDeal] = useState(false);
   const [dealError, setDealError] = useState(null);
   const [savedChecklistJson, setSavedChecklistJson] = useState(null);
+  const [zohoSaveStatus, setZohoSaveStatus] = useState(null); // 'saving', 'success', 'error'
+  const [zohoSaveError, setZohoSaveError] = useState(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -270,7 +272,7 @@ function HomeContent() {
     alert('Template saved successfully!');
   };
 
-  const saveChecklist = () => {
+  const saveChecklist = async () => {
     // Format the checklist to preserve order and structure
     const formattedChecklist = {
       visaType: selectedVisa,
@@ -288,6 +290,8 @@ function HomeContent() {
     };
     
     const jsonString = JSON.stringify(formattedChecklist, null, 2);
+    
+    // Always save to localStorage
     localStorage.setItem(`checklist_${selectedVisa}`, JSON.stringify(checklist));
     
     // Show the JSON at the top
@@ -295,6 +299,43 @@ function HomeContent() {
     
     // Scroll to top to show the JSON
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Save to Zoho if deal exists
+    if (dealData && dealData.id) {
+      setZohoSaveStatus('saving');
+      setZohoSaveError(null);
+      
+      try {
+        const response = await fetch('/api/zoho/deal', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            deal_id: dealData.id,
+            documents_json: jsonString,
+          }),
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          setZohoSaveStatus('success');
+          setZohoSaveError(null);
+        } else {
+          setZohoSaveStatus('error');
+          setZohoSaveError(data.error || 'Failed to save to Zoho CRM');
+        }
+      } catch (error) {
+        console.error('Error saving to Zoho:', error);
+        setZohoSaveStatus('error');
+        setZohoSaveError(error.message || 'Failed to connect to Zoho CRM');
+      }
+    } else {
+      // No deal data, clear Zoho save status
+      setZohoSaveStatus(null);
+      setZohoSaveError(null);
+    }
   };
 
   const copyToClipboard = (text) => {
@@ -339,9 +380,44 @@ function HomeContent() {
             <pre className="bg-white border border-indigo-100 rounded p-4 overflow-x-auto text-sm text-gray-800 max-h-96 overflow-y-auto">
               <code>{savedChecklistJson}</code>
             </pre>
-            <p className="text-xs text-indigo-600 mt-2">
-              ✓ Checklist saved to localStorage. The order/sequence of items within each category is preserved.
-            </p>
+            <div className="mt-3 space-y-2">
+              {/* Zoho Save Status Indicators */}
+              {dealData && dealData.id && (
+                <>
+                  {zohoSaveStatus === 'saving' && (
+                    <div className="flex items-center gap-2 text-xs text-blue-600">
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Saving to Zoho CRM...</span>
+                    </div>
+                  )}
+                  
+                  {zohoSaveStatus === 'success' && (
+                    <div className="flex items-center gap-2 text-xs text-green-600">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span>✓ Successfully saved to Zoho Deal (documents_json field)</span>
+                    </div>
+                  )}
+                  
+                  {zohoSaveStatus === 'error' && (
+                    <div className="flex items-start gap-2 text-xs text-red-600">
+                      <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div>
+                        <span className="font-medium">Failed to save to Zoho CRM:</span>
+                        <span className="ml-1">{zohoSaveError || 'Unknown error'}</span>
+                        <span className="block mt-1 text-gray-600">Checklist was saved to localStorage only.</span>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         )}
 

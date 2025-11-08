@@ -39,3 +39,50 @@ export async function GET(request) {
   }
 }
 
+export async function PUT(request) {
+  try {
+    const body = await request.json();
+    const { deal_id, documents_json } = body;
+
+    if (!deal_id) {
+      return NextResponse.json(
+        { success: false, error: 'deal_id is required' },
+        { status: 400 }
+      );
+    }
+
+    if (documents_json === undefined) {
+      return NextResponse.json(
+        { success: false, error: 'documents_json is required' },
+        { status: 400 }
+      );
+    }
+
+    const zohoClient = new ZohoCRMClient();
+    const updatedDeal = await zohoClient.updateDeal(deal_id, {
+      documents_json: documents_json,
+    });
+
+    if (!updatedDeal) {
+      return NextResponse.json(
+        { success: false, error: 'Failed to update deal' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      deal: updatedDeal,
+    });
+  } catch (error) {
+    console.error('Error updating deal in Zoho CRM:', error);
+    return NextResponse.json(
+      { 
+        success: false, 
+        error: error.message || 'Failed to update deal in Zoho CRM' 
+      },
+      { status: 500 }
+    );
+  }
+}
+
