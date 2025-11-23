@@ -21,10 +21,10 @@ import { CSS } from '@dnd-kit/utilities';
 import visaChecklists from '../data/visaChecklists';
 
 const VISA_TYPES = {
-  partner: 'Partner Visa',
-  temporaryWork: '482 Temporary Work Visa',
-  protection: 'Protection Visa',
-  employerSponsored: 'Permanent Employer Sponsored Visa',
+  partner: 'Partner Visa (820)',
+  temporaryWork: 'Temporary Work Visa (482)',
+  protection: 'Protection Visa (866)',
+  employerSponsored: 'Permanent Employer Sponsor Visa (ENS) (186)',
 };
 
 // Map Zoho Visa_Type values to our internal visa type keys
@@ -162,12 +162,30 @@ function HomeContent() {
     
     const defaultChecklist = visaChecklists[selectedVisa];
     const formatted = {};
-    Object.entries(defaultChecklist).forEach(([category, items]) => {
-      formatted[category] = items.map((item, index) => ({
-        id: `${category}-${index}-${Date.now()}`,
-        text: item,
-      }));
-    });
+    
+    // Check if this is the new structure (has categories array)
+    if (defaultChecklist && Array.isArray(defaultChecklist.categories)) {
+      // New structure: transform categories array to the format expected by the component
+      defaultChecklist.categories.forEach((category) => {
+        formatted[category.title] = category.items.map((item, index) => ({
+          id: `${category.key}-${item.key}-${Date.now()}-${index}`,
+          text: item.label,
+          key: item.key,
+          required: item.required,
+          group: item.group,
+          conditionalOn: item.conditionalOn,
+        }));
+      });
+    } else {
+      // Old structure: simple object with category names and string arrays
+      Object.entries(defaultChecklist).forEach(([category, items]) => {
+        formatted[category] = items.map((item, index) => ({
+          id: `${category}-${index}-${Date.now()}`,
+          text: item,
+        }));
+      });
+    }
+    
     setChecklist(formatted);
   };
 
